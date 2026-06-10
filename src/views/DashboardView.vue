@@ -2,78 +2,24 @@
     <div class="dashboard-layout">
         <header>
             <h2>Painel Interno 020</h2>
-            <button @click="handleLogout" class="btn-logout">Sair do Sistema</button>
         </header>
 
         <main>
             <div class="card-cadastro">
-                <h3>Cadastrar Novo Cliente</h3>
-                <p>Este formulário só envia dados porque você está autenticado.</p>
+                <h3>Bem-vindo</h3>
+                <p>Use as opções abaixo para gerenciar clientes e templates de mensagem.</p>
 
-                <form @submit.prevent="cadastrarCliente">
-                    <div class="form-group">
-                        <label>Nome do Cliente:</label>
-                        <input v-model="cliente.nome" type="text" placeholder="Ex: João Silva" required />
-                    </div>
-
-                    <div class="form-group">
-                        <label>WhatsApp:</label>
-                        <input v-model="cliente.telefone" type="text" placeholder="Ex: 5561999999999" required />
-                    </div>
-
-                    <div class="form-group">
-                        <label>Data de Nascimento:</label>
-                        <input v-model="cliente.data_nascimento" type="date" required />
-                    </div>
-
-                    <button type="submit" :disabled="carregando">
-                        {{ carregando ? 'Salvando...' : 'Cadastrar no Banco' }}
-                    </button>
-                </form>
-
-                <p v-if="notificacao" :class="['notificacao', { erro: statusErro }]">{{ notificacao }}</p>
+                <div class="nav-links">
+                    <router-link to="/clientes" class="nav-btn">Gerenciar Clientes</router-link>
+                    <router-link to="/templates" class="nav-btn">Gerenciar Templates</router-link>
+                </div>
             </div>
         </main>
     </div>
 </template>
 
 <script setup>
-import { ref } from 'vue'
-import { useRouter } from 'vue-router'
-import { supabase } from '../utils/supabase'
-
-const router = useRouter()
-const cliente = ref({ nome: '', telefone: '', data_nascimento: '' })
-const carregando = ref(false)
-const notificacao = ref('')
-const statusErro = ref(false)
-
-const cadastrarCliente = async () => {
-    carregando.value = true
-    notificacao.value = ''
-    statusErro.value = false
-
-    try {
-        const { error } = await supabase
-            .from('clientes')
-            .insert([cliente.value])
-
-        if (error) throw error
-
-        notificacao.value = "Cliente cadastrado com sucesso e protegido por RLS!"
-        cliente.value = { nome: '', telefone: '', data_nascimento: '' }
-    } catch (error) {
-        statusErro.value = true
-        notificacao.value = `Erro ao salvar: ${error.message}`
-    } finally {
-        carregando.value = false
-    }
-}
-
-const handleLogout = async () => {
-    await supabase.auth.signOut()
-    router.push({ name: 'login' })
-}
+// Dashboard simples com links para os módulos
 </script>
 
 <style scoped>
@@ -116,6 +62,26 @@ main {
     width: 100%;
     max-width: 500px;
     border: 1px solid #2e2e32;
+}
+
+.nav-links {
+    display: flex;
+    gap: 12px;
+    margin-top: 16px;
+}
+
+.nav-btn {
+    display: inline-block;
+    padding: 10px 14px;
+    background: #3ecf8e;
+    color: #121214;
+    border-radius: 6px;
+    text-decoration: none;
+    font-weight: bold;
+}
+
+.nav-btn:hover {
+    background: #32b37a
 }
 
 .form-group {
