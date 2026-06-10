@@ -28,8 +28,6 @@ function requireApiKey(req, res, next) {
   next();
 }
 
-app.use(requireApiKey);
-
 app.get("/api/health", (req, res) => {
   res.json({ status: "ok" });
 });
@@ -117,6 +115,10 @@ app.delete("/api/templates/:id", async (req, res) => {
   if (error) return res.status(500).json({ error });
   res.json({ success: true });
 });
+
+
+app.use(requireApiKey);
+
 
 const port = process.env.PORT || 3000;
 app.listen(port, () => {
