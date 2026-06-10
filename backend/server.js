@@ -17,7 +17,13 @@ if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
   process.exit(1);
 }
 
-const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
+  realtime: {
+    params: {
+      eventsPerSecond: 0,
+    },
+  },
+});
 
 function requireApiKey(req, res, next) {
   if (!BACKEND_API_KEY) return next();
