@@ -1,6 +1,12 @@
-const BASE_URL =
-  import.meta.env.VITE_BACKEND_URL?.replace(/\/+$/, "") ||
-  "http://localhost:3000/api";
+// Base URL do backend (no browser). Em deploy, você DEVE setar VITE_BACKEND_URL.
+// Ex: https://seu-backend.railway.app/api
+const BASE_URL = import.meta.env.VITE_BACKEND_URL?.replace(/\/+$/, "") || "";
+if (!BASE_URL) {
+  console.error(
+    "VITE_BACKEND_URL não definido. Defina no ambiente do frontend para apontar para o backend em produção.",
+  );
+}
+
 const BACKEND_API_KEY = import.meta.env.VITE_BACKEND_API_KEY || "";
 
 async function request(path, options = {}) {
