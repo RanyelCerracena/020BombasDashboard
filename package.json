@@ -8,7 +8,7 @@
     "build": "vite build",
     "preview": "vite preview",
     "backend": "node backend/server.js",
-    "start": "node backend/server.js",
+    "start": "npm run build && node backend/server.js",
     "scheduler": "node scripts/scheduler.js"
   },
   "optionalDependencies": {
