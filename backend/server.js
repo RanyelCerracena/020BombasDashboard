@@ -3,6 +3,7 @@ import cors from "cors";
 import path from "path";
 import { fileURLToPath } from "url";
 import { createClient } from "@supabase/supabase-js";
+import ws from "ws"; // IMPORTANTE: Importa o pacote ws para dar suporte ao Node v20
 
 const app = express();
 
@@ -24,11 +25,17 @@ if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
   process.exit(1);
 }
 
-// Inicialização correta do cliente do Supabase
-const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+// Inicialização corrigida passando o 'ws' no campo realtime.transport
+const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
+  auth: {
+    persistSession: false // Boa prática para ambientes server-side (Node)
+  },
+  realtime: {
+    transport: ws,
+  },
+});
 
 // 1. SERVIR ARQUIVOS ESTÁTICOS DO VUE FIRST (Evita o 401 no Favicon/Assets)
-// OBS: Ajuste o '../dist' caso sua pasta 'backend' esteja estruturada de forma diferente
 app.use(express.static(path.join(__dirname, "../dist")));
 
 // 2. ROTA PÚBLICA DE HEALTH (Usada pelo Railway para checar se o container está vivo)
@@ -70,7 +77,7 @@ app.post("/api/clients", async (req, res) => {
   const { data, error } = await supabase
     .from("clientes")
     .insert([{ nome, telefone, data_nascimento }])
-    .select(); // Adicionado .select() para garantir o retorno do dado inserido no Supabase v2
+    .select();
   if (error) return res.status(500).json({ error });
   res.status(201).json(data[0]);
 });
@@ -144,7 +151,6 @@ app.delete("/api/templates/:id", async (req, res) => {
 // =================================================================
 
 // 4. FALLBACK PARA VUE ROUTER (Sempre por último)
-// Se nenhuma rota de API bater, entrega o index.html para o Vue lidar com o roteamento interno
 app.get("*", (req, res) => {
   res.sendFile(path.join(__dirname, "../dist/index.html"));
 });
