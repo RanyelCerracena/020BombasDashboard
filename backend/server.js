@@ -3,11 +3,10 @@ import cors from "cors";
 import path from "path";
 import { fileURLToPath } from "url";
 import { createClient } from "@supabase/supabase-js";
-import ws from "ws"; // IMPORTANTE: Importa o pacote ws para dar suporte ao Node v20
+import ws from "ws";
 
 const app = express();
 
-// Configurações para ler caminhos no formato ES Modules (type: "module")
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
@@ -19,35 +18,56 @@ const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const BACKEND_API_KEY = process.env.BACKEND_API_KEY;
 
 if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
-  console.error(
-    "Erro: SUPABASE_URL e SUPABASE_SERVICE_ROLE_KEY devem ser definidas no ambiente.",
-  );
+  console.error("Erro fatal: SUPABASE_URL e SUPABASE_SERVICE_ROLE_KEY precisam estar configuradas.");
   process.exit(1);
 }
 
-// Inicialização corrigida passando o 'ws' no campo realtime.transport
-const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
-  auth: {
-    persistSession: false // Boa prática para ambientes server-side (Node)
-  },
-  realtime: {
-    transport: ws,
-  },
-});
+// Inicialização segura do Supabase isolando o transporte de realtime com o pacote WS
+let supabase;
+try {
+  supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
+    auth: {
+      persistSession: false
+    },
+    realtime: {
+      transport: ws,
+    },
+  });
+} catch (err) {
+  console.error("Erro ao inicializar o cliente do Supabase:", err);
+  process.exit(1);
+}
 
-// 1. SERVIR ARQUIVOS ESTÁTICOS DO VUE FIRST (Evita o 401 no Favicon/Assets)
+// ==================== CAMADA 1: ARQUIVOS ESTÁTICOS E ROTAS PÚBLICAS ====================
+
+// 1. Servir os arquivos gerados pelo build do Vue (CSS, JS, imagens)
 app.use(express.static(path.join(__dirname, "../dist")));
 
-app.get("/favicon.ico", (req, res) => res.status(204).end());
-
-// 2. ROTA PÚBLICA DE HEALTH (Usada pelo Railway para checar se o container está vivo)
+// 2. Rota de Health pública para o Railway monitorar o container (Evita 401)
 app.get("/api/health", (req, res) => {
-  res.json({ status: "ok" });
+  res.status(200).json({ status: "ok" });
 });
 
-// 3. MIDDLEWARE DE ASSINATURA DA API KEY
+// 3. Bloqueia respostas desnecessárias para o Favicon sem passar pelos middlewares
+app.get("/favicon.ico", (req, res) => res.status(204).end());
+
+
+// ==================== CAMADA 2: MIDDLEWARE DE SEGURANÇA (API KEY) ====================
+
 function requireApiKey(req, res, next) {
+  // Se a requisição for para buscar páginas ou assets do front-end, ignore a API key
+  if (!req.path.startsWith("/api/")) {
+    return next();
+  }
+
+  // Se a rota for o health check, ignora a API key
+  if (req.path === "/api/health") {
+    return next();
+  }
+
+  // Validação da chave para as rotas legítimas de dados (/api/clients, etc)
   if (!BACKEND_API_KEY) return next();
+  
   const apiKey = req.header("x-api-key");
   if (!apiKey || apiKey !== BACKEND_API_KEY) {
     return res.status(401).json({ error: "Unauthorized" });
@@ -55,10 +75,11 @@ function requireApiKey(req, res, next) {
   next();
 }
 
-// Protege todas as rotas abaixo com a API Key
+// Aplica a validação apenas no tráfego necessário
 app.use(requireApiKey);
 
-// ==================== ROTAS PROTEGIDAS DA API ====================
+
+// ==================== CAMADA 3: ROTAS PROTEGIDAS DA API ====================
 
 // --- CLIENTES ---
 app.get("/api/clients", async (req, res) => {
@@ -117,9 +138,7 @@ app.get("/api/templates", async (req, res) => {
 app.post("/api/templates", async (req, res) => {
   const { nome, tipo, mensagem } = req.body;
   if (!nome || !tipo || !mensagem) {
-    return res
-      .status(400)
-      .json({ error: "Nome, tipo e mensagem são obrigatórios." });
+    return res.status(400).json({ error: "Nome, tipo e mensagem são obrigatórios." });
   }
 
   const { data, error } = await supabase
@@ -150,14 +169,15 @@ app.delete("/api/templates/:id", async (req, res) => {
   res.json({ success: true });
 });
 
-// =================================================================
 
-// 4. FALLBACK PARA VUE ROUTER (Sempre por último)
+// ==================== CAMADA 4: FALLBACK DO VUE ROUTER ====================
+
+// Qualquer outra rota deságua no index.html do front-end
 app.get("*", (req, res) => {
   res.sendFile(path.join(__dirname, "../dist/index.html"));
 });
 
 const port = process.env.PORT || 3000;
 app.listen(port, () => {
-  console.log(`Backend rodando em http://localhost:${port}`);
+  console.log(`Servidor ativo com sucesso na porta ${port}`);
 });
