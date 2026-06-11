@@ -10,6 +10,7 @@ const app = express();
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+// Permite que o seu front-end hospedado em outro domínio acesse a API sem problemas de CORS
 app.use(cors());
 app.use(express.json());
 
@@ -38,28 +39,20 @@ try {
   process.exit(1);
 }
 
-// ==================== CAMADA 1: ARQUIVOS ESTÁTICOS E ROTAS PÚBLICAS ====================
+// ==================== CAMADA 1: ROTAS PÚBLICAS DE INFRAESTRUTURA ====================
 
-// 1. Servir os arquivos gerados pelo build do Vue (CSS, JS, imagens)
-app.use(express.static(path.join(__dirname, "../dist")));
-
-// 2. Rota de Health pública para o Railway monitorar o container (Evita 401)
+// Rota de Health pública para o Railway monitorar o container (Evita 401 e mantém o serviço UP)
 app.get("/api/health", (req, res) => {
   res.status(200).json({ status: "ok" });
 });
 
-// 3. Bloqueia respostas desnecessárias para o Favicon sem passar pelos middlewares
+// Bloqueia respostas desnecessárias para o Favicon sem passar pelos middlewares
 app.get("/favicon.ico", (req, res) => res.status(204).end());
 
 
 // ==================== CAMADA 2: MIDDLEWARE DE SEGURANÇA (API KEY) ====================
 
 function requireApiKey(req, res, next) {
-  // Se a requisição for para buscar páginas ou assets do front-end, ignore a API key
-  if (!req.path.startsWith("/api/")) {
-    return next();
-  }
-
   // Se a rota for o health check, ignora a API key
   if (req.path === "/api/health") {
     return next();
@@ -75,7 +68,7 @@ function requireApiKey(req, res, next) {
   next();
 }
 
-// Aplica a validação apenas no tráfego necessário
+// Aplica a validação de segurança em todas as rotas abaixo
 app.use(requireApiKey);
 
 
@@ -170,14 +163,14 @@ app.delete("/api/templates/:id", async (req, res) => {
 });
 
 
-// ==================== CAMADA 4: FALLBACK DO VUE ROUTER ====================
+// ==================== CAMADA 4: FALLBACK DE SEGURANÇA ====================
 
-// Qualquer outra rota deságua no index.html do front-end
-app.get("*", (req, res) => {
-  res.sendFile(path.join(__dirname, "../dist/index.html"));
+// Qualquer rota que não corresponda aos endpoints acima recebe 404 em JSON limpo (Sem crashar!)
+app.use((req, res) => {
+  res.status(404).json({ error: `Rota '${req.originalUrl}' não encontrada neste servidor de API.` });
 });
 
 const port = process.env.PORT || 3000;
 app.listen(port, () => {
-  console.log(`Servidor ativo com sucesso na porta ${port}`);
+  console.log(`Servidor de API ativo com sucesso na porta ${port}`);
 });
