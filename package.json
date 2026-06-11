@@ -11,6 +11,9 @@
     "start": "node backend/server.js",
     "scheduler": "node scripts/scheduler.js"
   },
+  "optionalDependencies": {
+    "@rolldown/binding-linux-x64-musl": "latest"
+  },
   "dependencies": {
     "@supabase/supabase-js": "^2.106.2",
     "cors": "^2.8.5",
