@@ -23,12 +23,19 @@ if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
   process.exit(1);
 }
 
-// Inicialização segura do Supabase isolando o transporte de realtime com o pacote WS
+// Inicialização segura e blindada do Supabase forçando o uso da Service Role Key
 let supabase;
 try {
   supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
     auth: {
-      persistSession: false
+      persistSession: false,
+      autoRefreshToken: false
+    },
+    global: {
+      headers: {
+        // Força o PostgREST do Supabase a reconhecer explicitamente o privilégio de administrador
+        Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`
+      }
     },
     realtime: {
       transport: ws,
