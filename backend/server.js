@@ -58,7 +58,7 @@ function requireApiKey(req, res, next) {
     return next();
   }
 
-  // Validação da chave para as rotas legítimas de dados (/api/clients, etc)
+  // Validação da chave para as rotas legítimas de dados
   if (!BACKEND_API_KEY) return next();
   
   const apiKey = req.header("x-api-key");
@@ -74,8 +74,8 @@ app.use(requireApiKey);
 
 // ==================== CAMADA 3: ROTAS PROTEGIDAS DA API ====================
 
-// --- CLIENTES ---
-app.get("/api/clients", async (req, res) => {
+// --- CLIENTES (Mapeamento duplo: Inglês e Português) ---
+app.get(["/api/clients", "/api/clientes"], async (req, res) => {
   const { data, error } = await supabase
     .from("clientes")
     .select("*")
@@ -84,7 +84,7 @@ app.get("/api/clients", async (req, res) => {
   res.json(data);
 });
 
-app.post("/api/clients", async (req, res) => {
+app.post(["/api/clients", "/api/clientes"], async (req, res) => {
   const { nome, telefone, data_nascimento } = req.body;
   if (!nome || !telefone) {
     return res.status(400).json({ error: "Nome e telefone são obrigatórios." });
@@ -98,7 +98,7 @@ app.post("/api/clients", async (req, res) => {
   res.status(201).json(data[0]);
 });
 
-app.put("/api/clients/:id", async (req, res) => {
+app.put(["/api/clients/:id", "/api/clientes/:id"], async (req, res) => {
   const { id } = req.params;
   const { nome, telefone, data_nascimento } = req.body;
   const { data, error } = await supabase
@@ -111,7 +111,7 @@ app.put("/api/clients/:id", async (req, res) => {
   res.json(data[0]);
 });
 
-app.delete("/api/clients/:id", async (req, res) => {
+app.delete(["/api/clients/:id", "/api/clientes/:id"], async (req, res) => {
   const { id } = req.params;
   const { error } = await supabase.from("clientes").delete().eq("id", id);
   if (error) return res.status(500).json({ error });
