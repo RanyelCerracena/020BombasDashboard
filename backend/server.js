@@ -1,8 +1,15 @@
 import express from "express";
 import cors from "cors";
+import path from "path";
+import { fileURLToPath } from "url";
 import { createClient } from "@supabase/supabase-js";
 
 const app = express();
+
+// Configurações para ler caminhos no formato ES Modules (type: "module")
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
 app.use(cors());
 app.use(express.json());
 
@@ -17,8 +24,19 @@ if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
   process.exit(1);
 }
 
-// IMPORTANTE: @supabase/realtime-js no Node 20 pode exigir WebSocket via pacote
+// Inicialização correta do cliente do Supabase
+const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
+// 1. SERVIR ARQUIVOS ESTÁTICOS DO VUE FIRST (Evita o 401 no Favicon/Assets)
+// OBS: Ajuste o '../dist' caso sua pasta 'backend' esteja estruturada de forma diferente
+app.use(express.static(path.join(__dirname, "../dist")));
+
+// 2. ROTA PÚBLICA DE HEALTH (Usada pelo Railway para checar se o container está vivo)
+app.get("/api/health", (req, res) => {
+  res.json({ status: "ok" });
+});
+
+// 3. MIDDLEWARE DE ASSINATURA DA API KEY
 function requireApiKey(req, res, next) {
   if (!BACKEND_API_KEY) return next();
   const apiKey = req.header("x-api-key");
@@ -28,10 +46,12 @@ function requireApiKey(req, res, next) {
   next();
 }
 
-app.get("/api/health", (req, res) => {
-  res.json({ status: "ok" });
-});
+// Protege todas as rotas abaixo com a API Key
+app.use(requireApiKey);
 
+// ==================== ROTAS PROTEGIDAS DA API ====================
+
+// --- CLIENTES ---
 app.get("/api/clients", async (req, res) => {
   const { data, error } = await supabase
     .from("clientes")
@@ -49,7 +69,8 @@ app.post("/api/clients", async (req, res) => {
 
   const { data, error } = await supabase
     .from("clientes")
-    .insert([{ nome, telefone, data_nascimento }]);
+    .insert([{ nome, telefone, data_nascimento }])
+    .select(); // Adicionado .select() para garantir o retorno do dado inserido no Supabase v2
   if (error) return res.status(500).json({ error });
   res.status(201).json(data[0]);
 });
@@ -60,7 +81,8 @@ app.put("/api/clients/:id", async (req, res) => {
   const { data, error } = await supabase
     .from("clientes")
     .update({ nome, telefone, data_nascimento })
-    .eq("id", id);
+    .eq("id", id)
+    .select();
 
   if (error) return res.status(500).json({ error });
   res.json(data[0]);
@@ -73,6 +95,7 @@ app.delete("/api/clients/:id", async (req, res) => {
   res.json({ success: true });
 });
 
+// --- TEMPLATES ---
 app.get("/api/templates", async (req, res) => {
   const { data, error } = await supabase
     .from("templates")
@@ -92,7 +115,8 @@ app.post("/api/templates", async (req, res) => {
 
   const { data, error } = await supabase
     .from("templates")
-    .insert([{ nome, tipo, mensagem }]);
+    .insert([{ nome, tipo, mensagem }])
+    .select();
   if (error) return res.status(500).json({ error });
   res.status(201).json(data[0]);
 });
@@ -103,7 +127,8 @@ app.put("/api/templates/:id", async (req, res) => {
   const { data, error } = await supabase
     .from("templates")
     .update({ nome, tipo, mensagem })
-    .eq("id", id);
+    .eq("id", id)
+    .select();
 
   if (error) return res.status(500).json({ error });
   res.json(data[0]);
@@ -116,9 +141,13 @@ app.delete("/api/templates/:id", async (req, res) => {
   res.json({ success: true });
 });
 
+// =================================================================
 
-app.use(requireApiKey);
-
+// 4. FALLBACK PARA VUE ROUTER (Sempre por último)
+// Se nenhuma rota de API bater, entrega o index.html para o Vue lidar com o roteamento interno
+app.get("*", (req, res) => {
+  res.sendFile(path.join(__dirname, "../dist/index.html"));
+});
 
 const port = process.env.PORT || 3000;
 app.listen(port, () => {
