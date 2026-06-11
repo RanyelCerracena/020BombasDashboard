@@ -36,11 +36,11 @@ async function request(path, options = {}) {
 
 export const getClients = () => request("/clients");
 export const createClient = (payload) =>
-  request("/clients", { method: "POST", body: JSON.stringify(payload) });
+  request("/api/clients", { method: "POST", body: JSON.stringify(payload) });
 export const updateClient = (id, payload) =>
-  request(`/clients/${id}`, { method: "PUT", body: JSON.stringify(payload) });
+  request(`/api/clients/${id}`, { method: "PUT", body: JSON.stringify(payload) });
 export const deleteClient = (id) =>
-  request(`/clients/${id}`, { method: "DELETE" });
+  request(`/api/clients/${id}`, { method: "DELETE" });
 
 export const getTemplates = () => request("/templates");
 export const createTemplate = (payload) =>
