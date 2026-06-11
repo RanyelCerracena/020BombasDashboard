@@ -38,6 +38,8 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
 // 1. SERVIR ARQUIVOS ESTÁTICOS DO VUE FIRST (Evita o 401 no Favicon/Assets)
 app.use(express.static(path.join(__dirname, "../dist")));
 
+app.get("/favicon.ico", (req, res) => res.status(204).end());
+
 // 2. ROTA PÚBLICA DE HEALTH (Usada pelo Railway para checar se o container está vivo)
 app.get("/api/health", (req, res) => {
   res.json({ status: "ok" });
